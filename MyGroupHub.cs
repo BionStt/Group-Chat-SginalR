@@ -7,6 +7,15 @@ using Microsoft.AspNet.SignalR.Hubs;
 
 namespace SignalRChat
 {
+    /* 
+     * Now let us start signalR class for group chat. Some peoples thinks that, 
+     * “Clients.All.receiveMessage(msgFrom, msg, "");” is useful to use in group chat. 
+     * But it is not correct because this will broadcast message to all connected clients 
+     * and not to any particular group. To maintain different groups, use of “Groups” method of signalR is 
+     * necessary.
+     **/
+
+    // [HubName("GroupChatHub")] is the my custom hub class name used for group chat.
     [HubName("GroupChatHub")]
     public class MyGroupHub : Hub
     {
@@ -15,6 +24,7 @@ namespace SignalRChat
             Clients.All.hello();
         }
 
+        // Following method is used to broadcast messages to a particular group.
         public void BroadCastMessage(String msgFrom, String msg, String GroupName)
         {
             var id = Context.ConnectionId;
@@ -25,7 +35,10 @@ namespace SignalRChat
             Exceptional[0] = id;       
             Clients.AllExcept(Exceptional).receiveMessage(msgFrom, msg);*/
         }
-
+        /* 
+         * Following custom method is written to connect current user to a particular group. 
+         * The groupname was entered by user only.
+         * **/
         [HubMethodName("groupconnect")]
         public void Get_Connect(String username, String userid, String connectionid, String GroupName)
         {
@@ -34,6 +47,7 @@ namespace SignalRChat
             string list = "";
            
             var id = Context.ConnectionId;
+            //this will add the connected user to particular group
             Groups.Add(id, GroupName);
 
             string[] Exceptional = new string[1];

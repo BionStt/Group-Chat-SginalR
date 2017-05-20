@@ -8,6 +8,10 @@ using System.Data.SqlClient;
 
 namespace SignalRChat
 {
+    /*
+     * SignalRChatHub is my SignalR class for one-to-one chat.
+     * [HubName("signalRChatHub")]” represents the custom hub name
+     * **/
     [HubName("signalRChatHub")]
     public class SignalRChatHub : Hub
     {
@@ -27,6 +31,10 @@ namespace SignalRChat
             Clients.AllExcept(Exceptional).receiveMessage(msgFrom, msg);*/           
         }
 
+        /* 
+         * hub from client side, I will call the custom method hubconnect from client to get store 
+         * connected user details to MS SQL database.
+         * **/
         [HubMethodName("hubconnect")]
         public void Get_Connect(String username,String userid,String connectionid)
         {
@@ -36,7 +44,14 @@ namespace SignalRChat
             try
             {
                 count = GetCount().ToString();
+                
+                /* 
+                 * Method “updaterec” is used to store user details to database
+                 * **/
                 msg = updaterec(username, userid, connectionid);
+                /*
+                * “GetUsers” will return the user names and their connection ids other than current user.
+                * **/  
                 list = GetUsers(username);
             }
             catch (Exception d)
@@ -47,18 +62,44 @@ namespace SignalRChat
             
             string[] Exceptional = new string[1];
             Exceptional[0] = id;
+
+            /* * 
+             * “Clients.Caller.receiveMessage” method is used where “receiveMessage” 
+             * is a client side method to be called from signalR hub server. 
+             * **/
             Clients.Caller.receiveMessage("RU", msg, list);
+
+            /*
+             * To caller, the list of all online users with connection ids was send 
+             * while to other online users, the information about newly connected user is send. 
+             * “Exceptional” array is used to make the collection of users to whom, message is not 
+             * to send. Here, in my case, only the caller is one user, to whom message was not to send.
+             * **/ 
             Clients.AllExcept(Exceptional).receiveMessage("NewConnection", username+" "+id,count);            
         }
 
+        /* 
+         * For private chat message broadcast, I will write the following custom method.
+         **/
         //[HubMethodName("privatemessage")]
         public void Send_PrivateMessage(String msgFrom, String msg, String touserid)
         {
             var id = Context.ConnectionId;
+
+            /* * 
+            * “Clients.Caller.receiveMessage” method is used where “receiveMessage” 
+            * is a client side method to be called from signalR hub server. 
+            * **/
+            //“Clients.Caller.receiveMessage” is called to broadcast the message to sender while 
             Clients.Caller.receiveMessage(msgFrom, msg,touserid);
+            // “Clients.Client(touserid).receiveMessage” is called to broadcast the message to single receiver. Here “touserid” is the connection id of receiver.
             Clients.Client(touserid).receiveMessage(msgFrom, msg,id);
         }
 
+        /*
+         * override the method “OnConnected()” to get connection id of connected client and inform 
+         * connected client with total number of connected users.
+         **/
         public override System.Threading.Tasks.Task OnConnected()
         {
             //string username = Context.QueryString["username"].ToString();
@@ -72,7 +113,12 @@ namespace SignalRChat
             catch (Exception d)
             {
                 count = d.Message;
-            }            
+            }
+
+            /* * 
+            * “Clients.Caller.receiveMessage” method is used where “receiveMessage” 
+            * is a client side method to be called from signalR hub server. 
+            * **/
             Clients.Caller.receiveMessage("ChatHub", data, count);
             return base.OnConnected();
         }
@@ -82,6 +128,10 @@ namespace SignalRChat
             return base.OnReconnected();
         }
 
+        /* 
+         * The “OnDisconnected” method is override to remove the disconnected client from database. 
+         * Also the information of disconnected client is broadcasted to other users.
+         * **/
         public override System.Threading.Tasks.Task OnDisconnected(bool stopCalled)
         {
             string count = "";
@@ -100,11 +150,20 @@ namespace SignalRChat
             }
             string[] Exceptional = new string[1];
             Exceptional[0] = clientId;
+            /*
+             * To caller, the list of all online users with connection ids was send 
+             * while to other online users, the information about newly connected user is send. 
+             * “Exceptional” array is used to make the collection of users to whom, message is not 
+             * to send. Here, in my case, only the caller is one user, to whom message was not to send.
+             * **/
             Clients.AllExcept(Exceptional).receiveMessage("NewConnection", clientId+" leave", count);
 
             return base.OnDisconnected(stopCalled);
         }
 
+        /* 
+         * Method “updaterec” is used to store user details to database
+         * **/
         public string updaterec(string username,string userid, string connectionid)
         {
             try
@@ -122,6 +181,12 @@ namespace SignalRChat
             }            
         }
 
+
+        /*
+         * GetCount() is a method used to get total number of users connected to hub. 
+         * I will store the connected users to MS SQL Database on successful connection. 
+         * To inform the connected user,  
+         **/
         public int GetCount()
         {
             int count = 0;
@@ -156,7 +221,9 @@ namespace SignalRChat
             sqlcon.Close();
             return result;
         }
-
+        /*
+         * “GetUsers” will return the user names and their connection ids other than current user.
+         * **/
         public string GetUsers(string username)
         {
             string list = "";
@@ -188,7 +255,7 @@ namespace SignalRChat
         }
 
         private string GetClientId()
-        {
+        {  
             string clientId = "";
             if (Context.QueryString["clientId"] != null)
             {
